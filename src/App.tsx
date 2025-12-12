@@ -15,7 +15,7 @@ export const App: React.FC = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [tempTodo, setTempTodo] = useState<Todo | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
-  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
   const [creating, setCreating] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>(Filter.All);
@@ -124,7 +124,14 @@ export const App: React.FC = () => {
   };
 
   const handleToggle = async (todo: Todo) => {
-    setLoadingId(String(todo.id));
+    setLoadingIds(prev => {
+      const next = new Set(prev);
+
+      next.add(String(todo.id));
+
+      return next;
+    });
+
     try {
       const updated = await client.patch<Todo>(`/todos/${todo.id}`, {
         ...todo,
@@ -135,12 +142,18 @@ export const App: React.FC = () => {
     } catch (err) {
       showError('Could not update todo');
     } finally {
-      setLoadingId(null);
+      setLoadingIds(prev => {
+        const next = new Set(prev);
+
+        next.delete(String(todo.id));
+
+        return next;
+      });
     }
   };
 
   const handleDelete = async (id: string) => {
-    setLoadingId(id);
+    setLoadingIds(prev => new Set(prev).add(id));
     try {
       await client.delete(`/todos/${id}`);
       setTodos(prev => prev.filter(t => String(t.id) !== id));
@@ -148,7 +161,13 @@ export const App: React.FC = () => {
     } catch {
       showError('Unable to delete a todo');
     } finally {
-      setLoadingId(null);
+      setLoadingIds(prev => {
+        const next = new Set(prev);
+
+        next.delete(id);
+
+        return next;
+      });
     }
   };
 
@@ -158,6 +177,14 @@ export const App: React.FC = () => {
     if (completed.length === 0) {
       return;
     }
+
+    setLoadingIds(prev => {
+      const next = new Set(prev);
+
+      completed.forEach(t => next.add(String(t.id)));
+
+      return next;
+    });
 
     const requests = completed.map(t => client.delete(`/todos/${t.id}`));
     const results = await Promise.allSettled(requests);
@@ -174,6 +201,14 @@ export const App: React.FC = () => {
     if (results.some(r => r.status === 'rejected')) {
       showError('Unable to delete a todo');
     }
+
+    setLoadingIds(prev => {
+      const next = new Set(prev);
+
+      completed.forEach(t => next.delete(String(t.id)));
+
+      return next;
+    });
   };
 
   const handleHideError = () => {
@@ -206,7 +241,7 @@ export const App: React.FC = () => {
         <TodoList
           todos={filteredTodos}
           loading={loading}
-          loadingId={loadingId}
+          loadingIds={loadingIds}
           onToggle={handleToggle}
           onDelete={handleDelete}
           tempTodo={tempTodo}

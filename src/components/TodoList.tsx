@@ -5,7 +5,7 @@ import { TodoItem } from './TodoItem';
 interface TodoListProps {
   todos: Todo[];
   loading: boolean;
-  loadingId: string | null;
+  loadingIds: Set<string>;
   onToggle: (todo: Todo) => void;
   onDelete: (id: string) => void;
   tempTodo: Todo | null;
@@ -14,7 +14,7 @@ interface TodoListProps {
 export const TodoList: React.FC<TodoListProps> = ({
   todos,
   loading,
-  loadingId,
+  loadingIds,
   onToggle,
   onDelete,
   tempTodo,
@@ -37,7 +37,7 @@ export const TodoList: React.FC<TodoListProps> = ({
           <TodoItem
             key={todo.id}
             todo={todo}
-            loading={loadingId === String(todo.id)}
+            loading={loadingIds.has(String(todo.id))}
             onToggle={() => onToggle(todo)}
             onDelete={() => onDelete(String(todo.id))}
           />
